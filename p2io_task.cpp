@@ -73,6 +73,15 @@ uint8_t dipSwitch[4] = {0, 1, 0, 0};
 uint16_t coinsInserted[2] = {0, 0};
 uint32_t jammaIoStatus = 0xfffffffe;
 
+int requestedDongle = -1;
+uint8_t donglePayload[2][40] = {
+  // Black dongle
+  {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+
+  // White dongle
+  {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+};
+
 void P2IO_Task()
 {
   if (USB_DeviceState != DEVICE_STATE_Configured)
@@ -198,8 +207,28 @@ void P2IO_Task()
         }
         else if (header->cmd == P2IO_CMD_DALLAS)
         {
-          dataOut[1] += 8 + 32;
+          uint8_t subCmd = dataIn[4];
+
+          dataOut[1] += 8 + 32 + 1;
           dataOut[4] = 1;
+
+          if (subCmd == 0 || subCmd == 1 || subCmd == 2)
+          {
+            // Dallas Read SID/Mem
+            if (subCmd != 2)
+              requestedDongle = subCmd;
+
+            if (requestedDongle >= 0)
+              memcpy(&dataOut[5], donglePayload[requestedDongle], 40);
+            else
+              memset(&dataOut[5], 0, 40);
+          }
+          else if (subCmd == 3)
+          {
+            // TODO: is this ever used?
+            // Dallas Write Mem
+            memset(&dataOut[5], 0, 40);
+          }
         }
         else
         {
