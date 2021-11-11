@@ -96,8 +96,8 @@ void P2IO_Task()
   {
     if (Endpoint_IsReadWriteAllowed())
     {
-      uint16_t wtf = 0; // Without this everything breaks, even if we never need to use it
-      Endpoint_Read_Stream_LE(dataIn, CDC_TXRX_EPSIZE, &wtf);
+      uint16_t bytesProcessed = 0; // This allows for partial transfers
+      Endpoint_Read_Stream_LE(dataIn, CDC_TXRX_EPSIZE, &bytesProcessed);
 
       P2IO_PACKET_HEADER *header = (P2IO_PACKET_HEADER *)&dataIn[0];
 
