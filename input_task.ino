@@ -75,7 +75,7 @@ constexpr uint8_t PIN_PS2_DAT = 14;
 constexpr uint8_t PIN_PS2_CLK = 15;
 constexpr uint8_t PIN_PS2_ATT = 10;
 
-const unsigned long POLLING_INTERVAL = 1000U / 50U; // Setting too low results in too much time being wasted on I/O polling
+const unsigned long POLLING_INTERVAL_MS = 15; // Setting too low results in too much time being wasted on I/O polling
 
 PsxControllerBitBang<PIN_PS2_ATT, PIN_PS2_CMD, PIN_PS2_DAT, PIN_PS2_CLK> psx;
 
@@ -85,9 +85,10 @@ bool coinWasInserted[2] = {false, false};
 void Input_Task()
 {
   static unsigned long last = 0;
+  unsigned long cur_ms = millis();
 
-  if (millis () - last >= POLLING_INTERVAL) {
-    last = millis ();
+  if (cur_ms - last >= POLLING_INTERVAL_MS) {
+    last = cur_ms;
     if (!haveController) {
       if (psx.begin()) {
         if (psx.enterConfigMode()) {
@@ -140,6 +141,18 @@ void Input_Task()
             jammaIoStatus &= ~P2IO_JAMMA_GF_P2_START;
           } else {
             jammaIoStatus |= P2IO_JAMMA_GF_P2_START;
+          }
+#elif GAME_TYPE == GAMETYPE_DM
+          if (psx.buttonPressed(PSB_L1)) {
+            jammaIoStatus &= ~P2IO_JAMMA_DM_SELECT_L;
+          } else {
+            jammaIoStatus |= P2IO_JAMMA_DM_SELECT_L;
+          }
+
+          if (psx.buttonPressed(PSB_R1)) {
+            jammaIoStatus &= ~P2IO_JAMMA_DM_SELECT_R;
+          } else {
+            jammaIoStatus |= P2IO_JAMMA_DM_SELECT_R;
           }
 #endif
         } else {
@@ -242,6 +255,48 @@ void Input_Task()
             jammaIoStatus &= ~P2IO_JAMMA_GF_P1_START;
           } else {
             jammaIoStatus |= P2IO_JAMMA_GF_P1_START;
+          }
+#elif GAME_TYPE == GAMETYPE_DM
+          if (psx.buttonPressed(PSB_START)) {
+            jammaIoStatus &= ~P2IO_JAMMA_DM_START;
+          } else {
+            jammaIoStatus |= P2IO_JAMMA_DM_START;
+          }
+
+          if (psx.buttonJustPressed(PSB_L1) || psx.buttonJustPressed(PSB_L2)) {
+            jammaIoStatus &= ~P2IO_JAMMA_DM_HIHAT;
+          } else {
+            jammaIoStatus |= P2IO_JAMMA_DM_HIHAT;
+          }
+
+          if (psx.buttonJustPressed(PSB_R1) || psx.buttonJustPressed(PSB_R2)) {
+            jammaIoStatus &= ~P2IO_JAMMA_DM_CYMBAL;
+          } else {
+            jammaIoStatus |= P2IO_JAMMA_DM_CYMBAL;
+          }
+
+          if (psx.buttonJustPressed(PSB_PAD_UP) || psx.buttonJustPressed(PSB_TRIANGLE)) {
+            jammaIoStatus &= ~P2IO_JAMMA_DM_HIGH_TOM;
+          } else {
+            jammaIoStatus |= P2IO_JAMMA_DM_HIGH_TOM;
+          }
+
+          if (psx.buttonJustPressed(PSB_PAD_LEFT) || psx.buttonJustPressed(PSB_SQUARE)) {
+            jammaIoStatus &= ~P2IO_JAMMA_DM_SNARE;
+          } else {
+            jammaIoStatus |= P2IO_JAMMA_DM_SNARE;
+          }
+
+          if (psx.buttonPressed(PSB_PAD_DOWN) || psx.buttonJustPressed(PSB_CROSS)) {
+            jammaIoStatus &= ~P2IO_JAMMA_DM_BASS_DRUM;
+          } else {
+            jammaIoStatus |= P2IO_JAMMA_DM_BASS_DRUM;
+          }
+
+          if (psx.buttonJustPressed(PSB_PAD_RIGHT) || psx.buttonJustPressed(PSB_CIRCLE)) {
+            jammaIoStatus &= ~P2IO_JAMMA_DM_LOW_TOM;
+          } else {
+            jammaIoStatus |= P2IO_JAMMA_DM_LOW_TOM;
           }
 #endif
         }
