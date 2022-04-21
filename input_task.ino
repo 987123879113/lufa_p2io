@@ -232,7 +232,7 @@ void Input_Task()
             jammaIoStatus |= P2IO_JAMMA_GF_P1_WAILING;
           }
 
-          if (psx.buttonPressed(PSB_CIRCLE)) {
+          if (psx.buttonPressed(PSB_CIRCLE) || psx.buttonPressed(PSB_CROSS)) {
             jammaIoStatus &= ~P2IO_JAMMA_GF_P1_PICK;
           } else {
             jammaIoStatus |= P2IO_JAMMA_GF_P1_PICK;
