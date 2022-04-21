@@ -6,6 +6,8 @@
 
 #include "config.h"
 
+#define BigEndian16(val) (((val & 0xff) << 8) | (val >> 8))
+
 constexpr uint32_t P2IO_JAMMA_IO_TEST = 0x10000000;
 constexpr uint32_t P2IO_JAMMA_IO_COIN1 = 0x20000000;
 constexpr uint32_t P2IO_JAMMA_IO_COIN2 = 0x80000000;
@@ -298,6 +300,70 @@ void Input_Task()
           } else {
             jammaIoStatus |= P2IO_JAMMA_DM_LOW_TOM;
           }
+#elif GAME_TYPE == GAMETYPE_THRILLDRIVE
+          if (psx.buttonPressed(PSB_START)) {
+            jammaIoStatus &= ~P2IO_JAMMA_THRILLDRIVE_START;
+          } else {
+            jammaIoStatus |= P2IO_JAMMA_THRILLDRIVE_START;
+          }
+
+          if (psx.buttonPressed(PSB_L2)) {
+            jammaIoStatus &= ~P2IO_JAMMA_THRILLDRIVE_GEARSHIFT_DOWN;
+            jammaIoStatus |= P2IO_JAMMA_THRILLDRIVE_GEARSHIFT_UP;
+          } else if (psx.buttonPressed(PSB_R2)) {
+            jammaIoStatus &= ~P2IO_JAMMA_THRILLDRIVE_GEARSHIFT_UP;
+            jammaIoStatus |= P2IO_JAMMA_THRILLDRIVE_GEARSHIFT_DOWN;
+          } else {
+            jammaIoStatus |= P2IO_JAMMA_THRILLDRIVE_GEARSHIFT_DOWN;
+            jammaIoStatus |= P2IO_JAMMA_THRILLDRIVE_GEARSHIFT_UP;
+          }
+
+          uint16_t wheel = 0x7fdf;
+          uint16_t accel = 0;
+          uint16_t brake = 0;
+
+          uint8_t x, y;
+          if (psx.getLeftAnalog(x, y)) {
+            float xf = x / 255.0f;
+
+            // Calculate for dead zones to make sure it centers properly when stick is released.
+            // Adjust as your controller needs it.
+            if (xf > 0.4f && xf < 0.6f)
+              xf = 0.5f;
+
+            wheel = 0xffff - (0xffff * xf);
+          }
+
+          if (psx.getRightAnalog(x, y)) {
+            float yf = y / 255.0f;
+
+
+            // Calculate for dead zones. Adjust as needed for your controller.
+            if (yf <= 0.42f) {
+              accel = 0xffff * ((0.42f - yf) / 0.42f);
+            } else if (yf >= 0.55f) {
+              brake = 0xffff * ((yf - 0.55f) / (1.0f - 0.55f));
+            }
+          }
+
+          // Override analog inputs with digital inputs
+          if (psx.buttonPressed(PSB_CIRCLE)) {
+            accel = 0xffff;
+          }
+
+          if (psx.buttonPressed(PSB_CROSS)) {
+            brake = 0xffff;
+          }
+
+          if (psx.buttonPressed(PSB_PAD_LEFT)) {
+            wheel = 0xffff;
+          } else if (psx.buttonPressed(PSB_PAD_RIGHT)) {
+            wheel = 0;
+          }
+
+          analogIoStatus[0] = BigEndian16(wheel);
+          analogIoStatus[1] = BigEndian16(accel);
+          analogIoStatus[2] = BigEndian16(brake);
 #endif
         }
       }
