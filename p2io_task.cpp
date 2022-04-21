@@ -12,28 +12,6 @@ struct P2IO_PACKET_HEADER
   uint8_t cmd;
 };
 
-const uint32_t P2IO_JAMMA_IO_TEST = 0x10000000;
-const uint32_t P2IO_JAMMA_IO_COIN1 = 0x20000000;
-const uint32_t P2IO_JAMMA_IO_COIN2 = 0x80000000;
-const uint32_t P2IO_JAMMA_IO_SERVICE = 0x40000000;
-const uint32_t P2IO_JAMMA_IO_SERVICE2 = 0x00000080;
-
-const uint32_t P2IO_JAMMA_DDR_P1_START = 0x00000100;
-const uint32_t P2IO_JAMMA_DDR_P1_LEFT = 0x00004000;
-const uint32_t P2IO_JAMMA_DDR_P1_RIGHT = 0x00008000;
-const uint32_t P2IO_JAMMA_DDR_P1_FOOT_UP = 0x00000200;
-const uint32_t P2IO_JAMMA_DDR_P1_FOOT_DOWN = 0x00000400;
-const uint32_t P2IO_JAMMA_DDR_P1_FOOT_LEFT = 0x00000800;
-const uint32_t P2IO_JAMMA_DDR_P1_FOOT_RIGHT = 0x00001000;
-
-const uint32_t P2IO_JAMMA_DDR_P2_START = 0x00010000;
-const uint32_t P2IO_JAMMA_DDR_P2_LEFT = 0x00400000;
-const uint32_t P2IO_JAMMA_DDR_P2_RIGHT = 0x00800000;
-const uint32_t P2IO_JAMMA_DDR_P2_FOOT_UP = 0x00020000;
-const uint32_t P2IO_JAMMA_DDR_P2_FOOT_DOWN = 0x00040000;
-const uint32_t P2IO_JAMMA_DDR_P2_FOOT_LEFT = 0x00080000;
-const uint32_t P2IO_JAMMA_DDR_P2_FOOT_RIGHT = 0x00100000;
-
 const uint8_t P2IO_HEADER_MAGIC = 0xaa;
 
 enum
@@ -72,6 +50,7 @@ bool FORCE_31KHZ = false;
 uint8_t dipSwitch[4] = {0, 1, 0, 0};
 uint16_t coinsInserted[2] = {0, 0};
 uint32_t jammaIoStatus = 0xfffffffe;
+uint16_t analogIoStatus[3] = {0, 0, 0};
 
 int requestedDongle = -1;
 uint8_t donglePayload[2][40] = {
@@ -263,82 +242,10 @@ void P2IO_Task()
 
     jammaIoStatus ^= 2; // Watchdog bit
 
-    /*
-    if (k == '2') {
-      jammaIoStatus &= ~P2IO_JAMMA_DDR_P1_FOOT_UP;
-    } else {
-      jammaIoStatus |= P2IO_JAMMA_DDR_P1_FOOT_UP;
-    }
-    if (k == '4') {
-      jammaIoStatus &= ~P2IO_JAMMA_DDR_P1_FOOT_LEFT;
-    } else {
-      jammaIoStatus |= P2IO_JAMMA_DDR_P1_FOOT_LEFT;
-    }
-    if (k == '6') {
-      jammaIoStatus &= ~P2IO_JAMMA_DDR_P1_FOOT_RIGHT;
-    } else {
-      jammaIoStatus |= P2IO_JAMMA_DDR_P1_FOOT_RIGHT;
-    }
-    if (k == '8') {
-      jammaIoStatus &= ~P2IO_JAMMA_DDR_P1_FOOT_DOWN;
-    } else {
-      jammaIoStatus |= P2IO_JAMMA_DDR_P1_FOOT_DOWN;
-    }
-
-
-    if (k == '1') {
-      jammaIoStatus &= ~P2IO_JAMMA_DDR_P1_LEFT;
-    } else {
-      jammaIoStatus |= P2IO_JAMMA_DDR_P1_LEFT;
-    }
-
-    if (k == '3') {
-      jammaIoStatus &= ~P2IO_JAMMA_DDR_P1_RIGHT;
-    } else {
-      jammaIoStatus |= P2IO_JAMMA_DDR_P1_RIGHT;
-    }
-
-
-    if (k == '*') {
-      jammaIoStatus &= ~P2IO_JAMMA_DDR_P2_LEFT;
-    } else {
-      jammaIoStatus |= P2IO_JAMMA_DDR_P2_LEFT;
-    }
-
-    if (k == '#') {
-      jammaIoStatus &= ~P2IO_JAMMA_DDR_P2_RIGHT;
-    } else {
-      jammaIoStatus |= P2IO_JAMMA_DDR_P2_RIGHT;
-    }
-
-
-
-    if (k == 'A') {
-      jammaIoStatus &= ~P2IO_JAMMA_DDR_P1_START;
-    } else {
-      jammaIoStatus |= P2IO_JAMMA_DDR_P1_START;
-    }
-
-    if (k == 'B') {
-      jammaIoStatus &= ~P2IO_JAMMA_DDR_P2_START;
-    } else {
-      jammaIoStatus |= P2IO_JAMMA_DDR_P2_START;
-    }
-
-    if (k == 'C') {
-      jammaIoStatus &= ~P2IO_JAMMA_IO_SERVICE;
-    } else {
-      jammaIoStatus |= P2IO_JAMMA_IO_SERVICE;
-    }
-
-    if (k == 'D') {
-      jammaIoStatus &= ~P2IO_JAMMA_IO_TEST;
-    } else {
-      jammaIoStatus |= P2IO_JAMMA_IO_TEST;
-    }
-*/
-
     *jammaIo = jammaIoStatus;
+    analogIo[0] = analogIoStatus[0];
+    analogIo[1] = analogIoStatus[1];
+    analogIo[2] = analogIoStatus[2];
 
     Endpoint_Write_Stream_LE(resp, 12, NULL);
     Endpoint_ClearIN();

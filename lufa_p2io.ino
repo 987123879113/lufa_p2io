@@ -23,6 +23,7 @@ void setup()
 void loop()
 {
    CDC_Device_USBTask(&VirtualSerial_CDC_Interface);
+   Input_Task();
    P2IO_Task();
    USB_USBTask();
 }
