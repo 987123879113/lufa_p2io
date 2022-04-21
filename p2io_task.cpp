@@ -4,6 +4,8 @@
 #include "p2io_task.h"
 #include "p2io.h"
 
+#include "config.h"
+
 struct P2IO_PACKET_HEADER
 {
   uint8_t magic;
@@ -47,19 +49,12 @@ enum
 };
 
 bool FORCE_31KHZ = false;
-uint8_t dipSwitch[4] = {0, 1, 0, 0};
+uint8_t dipSwitch[4] = {DIPSW1, DIPSW2, DIPSW3, DIPSW4};
 uint16_t coinsInserted[2] = {0, 0};
 uint32_t jammaIoStatus = 0xfffffffe;
 uint16_t analogIoStatus[3] = {0, 0, 0};
 
 int requestedDongle = -1;
-uint8_t donglePayload[2][40] = {
-  // Black dongle
-  {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-
-  // White dongle
-  {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-};
 
 void P2IO_Task()
 {
@@ -189,8 +184,8 @@ void P2IO_Task()
         {
           uint8_t subCmd = dataIn[4];
 
-          dataOut[1] += 8 + 32 + 1;
-          dataOut[4] = 1;
+          dataOut[1] += 1;
+          dataOut[4] = 0;
 
           if (subCmd == 0 || subCmd == 1 || subCmd == 2)
           {
@@ -198,15 +193,18 @@ void P2IO_Task()
             if (subCmd != 2)
               requestedDongle = subCmd;
 
-            if (requestedDongle >= 0)
+            if (requestedDongle >= 0 && dongleIsLoaded[requestedDongle]) {
+              dataOut[1] += 8 + 32;
+              dataOut[4] = 1;
               memcpy(&dataOut[5], donglePayload[requestedDongle], 40);
-            else
-              memset(&dataOut[5], 0, 40);
+            }
           }
           else if (subCmd == 3)
           {
             // TODO: is this ever used?
             // Dallas Write Mem
+            dataOut[1] += 8 + 32;
+            dataOut[4] = 1;
             memset(&dataOut[5], 0, 40);
           }
         }

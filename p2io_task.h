@@ -9,7 +9,7 @@ extern "C"
 {
 #endif
   void P2IO_Task();
-  
+
   extern uint32_t jammaIoStatus;
   extern uint16_t analogIoStatus[3];
   extern uint16_t coinsInserted[2];
