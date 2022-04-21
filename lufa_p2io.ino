@@ -1,43 +1,63 @@
-/**
-   You should have a LUFAConfig.h for this to work.
-*/
 #include "LUFAConfig.h"
 
-/**
-   Include LUFA.h after LUFAConfig.h
-*/
 #include <LUFA.h>
 
-/**
-   Finally include the LUFA device setup header
-*/
 #include "p2io.h"
+
 #include "p2io_task.h"
 
+#include "acio.h"
+#include "common.h"
 #include "config.h"
+#include "ddr_extio.h"
+#include "icca.h"
+#include "thrilldrive_belt.h"
+#include "thrilldrive_handle.h"
+#include "toysmarch_drumpad.h"
 
-bool dongleIsLoaded[2] = {false, false};
+void setup() {
+    SetupHardware();          // ask LUFA to setup the hardware
+    GlobalInterruptEnable();  // enable global interrupts
 
-void setup()
-{
-  SetupHardware();         // ask LUFA to setup the hardware
-  GlobalInterruptEnable(); // enable global interrupts
-
-  for (int j = 0; j < 2; j++) {
-    dongleIsLoaded[j] = false;
-    for (int i = 0; i < 40; i++) {
-      if (donglePayload[j][i] != 0) {
-        dongleIsLoaded[j] = true;
-        break;
-      }
+    for (int j = 0; j < 2; j++) {
+        dongleIsLoaded[j] = false;
+        for (int i = 0; i < 40; i++) {
+            if (donglePayload[j][i] != 0) {
+                dongleIsLoaded[j] = true;
+                break;
+            }
+        }
     }
-  }
+
+#if GAME_TYPE == GAMETYPE_DM
+    auto aciodev = new acio_device();
+    aciodev->add_acio_device(0, new acio_icca_device(0));
+    serialDevices[0] = aciodev;
+#elif GAME_TYPE == GAMETYPE_GF
+    auto aciodev = new acio_device();
+    aciodev->add_acio_device(0, new acio_icca_device(0));
+    aciodev->add_acio_device(1, new acio_icca_device(1));
+    serialDevices[0] = aciodev;
+#elif GAME_TYPE == GAMETYPE_DDR
+    serialDevices[0] = new extio_device();
+
+    auto aciodev = new acio_device();
+    aciodev->add_acio_device(0, new acio_icca_device(0));
+    aciodev->add_acio_device(1, new acio_icca_device(1));
+    serialDevices[1] = aciodev;
+#elif GAME_TYPE == GAMETYPE_THRILLDRIVE
+    auto aciodev = new acio_device();
+    aciodev->add_acio_device(0, new thrilldrive_handle_device());
+    aciodev->add_acio_device(1, new thrilldrive_belt_device());
+    serialDevices[1] = aciodev;
+#elif GAME_TYPE == GAMETYPE_TOYSMARCH
+    serialDevices[0] = new toysmarch_drumpad_device();
+#endif
 }
 
-void loop()
-{
-  CDC_Device_USBTask(&VirtualSerial_CDC_Interface);
-  Input_Task();
-  P2IO_Task();
-  USB_USBTask();
+void loop() {
+    CDC_Device_USBTask(&VirtualSerial_CDC_Interface);
+    Input_Task();
+    P2IO_Task();
+    USB_USBTask();
 }

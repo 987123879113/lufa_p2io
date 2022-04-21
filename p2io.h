@@ -29,18 +29,17 @@
 
 /* Function Prototypes: */
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
-  void SetupHardware(void);
+void SetupHardware(void);
 
-  void EVENT_USB_Device_Connect(void);
-  void EVENT_USB_Device_Disconnect(void);
-  void EVENT_USB_Device_ConfigurationChanged(void);
-  void EVENT_USB_Device_ControlRequest(void);
+void EVENT_USB_Device_Connect(void);
+void EVENT_USB_Device_Disconnect(void);
+void EVENT_USB_Device_ConfigurationChanged(void);
+void EVENT_USB_Device_ControlRequest(void);
 
-  /* Data Types: */
-  extern USB_ClassInfo_CDC_Device_t VirtualSerial_CDC_Interface;
+/* Data Types: */
+extern USB_ClassInfo_CDC_Device_t VirtualSerial_CDC_Interface;
 
 #ifdef __cplusplus
 }
