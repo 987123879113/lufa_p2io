@@ -349,21 +349,21 @@ void Input_Task() {
                     }
 
                     if (psx.buttonPressed(PSB_L1) || psx.buttonPressed(PSB_R1) || psx.buttonPressed(PSB_L2) || psx.buttonPressed(PSB_R2) || psx.buttonPressed(PSB_PAD_UP) || psx.buttonPressed(PSB_TRIANGLE)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_TOYSMARCH_P1_CYMBAL;
+                        otherIoStatus &= ~P2IO_OTHER_TOYSMARCH_P1_CYMBAL;
                     } else {
-                        jammaIoStatus |= P2IO_JAMMA_TOYSMARCH_P1_CYMBAL;
+                        otherIoStatus |= P2IO_OTHER_TOYSMARCH_P1_CYMBAL;
                     }
 
                     if (psx.buttonPressed(PSB_PAD_LEFT) || psx.buttonPressed(PSB_PAD_RIGHT) || psx.buttonPressed(PSB_PAD_DOWN)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_TOYSMARCH_P1_DRUML;
+                        otherIoStatus &= ~P2IO_OTHER_TOYSMARCH_P1_DRUML;
                     } else {
-                        jammaIoStatus |= P2IO_JAMMA_TOYSMARCH_P1_DRUML;
+                        otherIoStatus |= P2IO_OTHER_TOYSMARCH_P1_DRUML;
                     }
 
                     if (psx.buttonPressed(PSB_CROSS) || psx.buttonPressed(PSB_CIRCLE) || psx.buttonPressed(PSB_SQUARE)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_TOYSMARCH_P1_DRUMR;
+                        otherIoStatus &= ~P2IO_OTHER_TOYSMARCH_P1_DRUMR;
                     } else {
-                        jammaIoStatus |= P2IO_JAMMA_TOYSMARCH_P1_DRUMR;
+                        otherIoStatus |= P2IO_OTHER_TOYSMARCH_P1_DRUMR;
                     }
 #endif
                 }
