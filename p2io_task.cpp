@@ -58,8 +58,12 @@ input_device *serialDevices[2] = {NULL, NULL};
 
 int requestedDongle = -1;
 
+constexpr size_t DATA_IN_LEN = 512;
+uint8_t dataIn[DATA_IN_LEN] = {0};
+int dataInLen = 0;
+
 constexpr size_t DATA_OUT_LEN = 512;
-uint8_t dataOutBuffer[DATA_OUT_LEN] = {0};
+uint8_t dataOut[DATA_OUT_LEN] = {0};
 int dataOutLen = 0;
 
 void SendIOUpdate()
@@ -86,22 +90,29 @@ void P2IO_Task() {
     if (USB_DeviceState != DEVICE_STATE_Configured)
         return;
 
-    uint8_t dataIn[CDC_TXRX_EPSIZE] = {0};
-    uint8_t *dataOut = &dataOutBuffer[dataOutLen];
-    size_t dataOutRemainingLen = DATA_OUT_LEN - dataOutLen;
-
     SendIOUpdate();
 
     Endpoint_SelectEndpoint(CDC_RX_EPADDR);
     if (Endpoint_IsOUTReceived()) {
         if (Endpoint_IsReadWriteAllowed()) {
-            // TODO: Make this read in full packets before processing, based on the packet size header byte
-            uint16_t bytesProcessed = 0;  // This allows for partial transfers
-            Endpoint_Read_Stream_LE(dataIn, CDC_TXRX_EPSIZE, &bytesProcessed);
-
             P2IO_PACKET_HEADER *header = (P2IO_PACKET_HEADER *)&dataIn[0];
 
-            if (header->magic == P2IO_HEADER_MAGIC) {
+            // It's rare to need true bulk reads, but GFDM sends a large 0x84 byte packet when you open the operator menus
+            auto processedBytes = 0;
+            while (Endpoint_Read_Stream_LE(&dataIn[dataInLen], DATA_IN_LEN - dataInLen, &processedBytes) == ENDPOINT_RWSTREAM_IncompleteTransfer) {
+                if (dataInLen + processedBytes > 0 && header->magic == P2IO_HEADER_MAGIC && dataInLen + processedBytes >= header->len + 2) {
+                    break;
+                }
+            }
+            dataInLen += processedBytes;
+
+            if (dataInLen > 0 && header->magic == P2IO_HEADER_MAGIC) {
+                // TODO: What happens if the packet ends on an 0xff?
+                auto newSize = acio_unescape_packet(&dataIn[dataInLen - processedBytes], processedBytes);
+                dataInLen -= (dataInLen - processedBytes) - newSize;
+            }
+
+            if (dataInLen > 0 && header->magic == P2IO_HEADER_MAGIC && dataInLen >= header->len + 2) {
                 dataOut[0] = P2IO_HEADER_MAGIC;
                 dataOut[1] = 2;
                 dataOut[2] = dataIn[2];
@@ -222,7 +233,6 @@ void P2IO_Task() {
                     const auto device = serialDevices[port];
                     if (device != nullptr) {
                         device->reset_buffer();
-                        acio_unescape_packet(&dataIn[6], bytesProcessed);
                         device->write(&dataIn[6], packetLen);
                     }
 
@@ -238,7 +248,7 @@ void P2IO_Task() {
                     const auto device = serialDevices[port];
                     if (device != nullptr && requestedLen > 0) {
                         dataOut[4] = device->read(&dataOut[5], 0, requestedLen);
-                        dataOutLen = acio_escape_packet(&dataOut[5], dataOut[4], dataOutRemainingLen - 5);
+                        dataOutLen = acio_escape_packet(&dataOut[5], dataOut[4], DATA_OUT_LEN - 5);
                         dataOutLen += dataOut[1];
                         dataOut[1] += dataOut[4];
                         device->reset_buffer();
@@ -252,7 +262,28 @@ void P2IO_Task() {
                     dataOutLen = dataOut[1];
 
                 dataOutLen += 2;
+
+                dataInLen -= header->len + 2;
+                if (dataInLen > 0)
+                    memmove(&dataIn[0], &dataIn[header->len + 2], header->len + 2);
             }
+
+            if (dataInLen > 0 && dataIn[0] != P2IO_HEADER_MAGIC) {
+                size_t targetIdx = 0;
+
+                while (targetIdx < dataInLen && targetIdx < DATA_IN_LEN && dataIn[targetIdx] != P2IO_HEADER_MAGIC)
+                    targetIdx++;
+
+                if (targetIdx < dataInLen && targetIdx < DATA_IN_LEN && dataIn[targetIdx] == P2IO_HEADER_MAGIC) {
+                    memmove(&dataIn[0], &dataIn[targetIdx], dataInLen - targetIdx);
+                    dataInLen -= targetIdx;
+                } else {
+                    dataInLen = 0;
+                }
+            }
+
+            if (dataInLen < 0)
+                dataInLen = 0;
         }
 
         Endpoint_ClearOUT();
@@ -263,8 +294,8 @@ void P2IO_Task() {
     if (dataOutLen > 0) {
         Endpoint_SelectEndpoint(CDC_TX_EPADDR);
 
-        uint16_t sendBytesProcessed = 0;
-        while (Endpoint_Write_Stream_LE(dataOutBuffer, dataOutLen, &sendBytesProcessed) == ENDPOINT_RWSTREAM_IncompleteTransfer);
+        uint16_t dataOutProcessed = 0;
+        while (Endpoint_Write_Stream_LE(dataOut, dataOutLen, &dataOutProcessed) == ENDPOINT_RWSTREAM_IncompleteTransfer);
 
         Endpoint_ClearIN();
         dataOutLen = 0;
