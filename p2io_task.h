@@ -11,7 +11,7 @@ extern "C" {
 #endif
 void P2IO_Task();
 
-extern uint32_t jammaIoStatus, otherIoStatus;
+extern uint32_t jammaIoStatus, otherIoStatus, cardIoStatus;
 extern uint16_t analogIoStatus[3];
 extern uint16_t coinsInserted[2];
 extern input_device* serialDevices[2];

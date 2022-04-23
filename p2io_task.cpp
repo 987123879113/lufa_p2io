@@ -48,24 +48,49 @@ enum {
 };
 
 bool FORCE_31KHZ = false;
-uint8_t dipSwitch[4] = {DIPSW1, DIPSW2, DIPSW3, DIPSW4};
 uint16_t coinsInserted[2] = {0, 0};
 uint32_t jammaIoStatus = 0xfffffffe;
 uint32_t otherIoStatus = 0xffffffff;
+uint32_t cardIoStatus = 0xffffffff;
 uint16_t analogIoStatus[3] = {0, 0, 0};
 bool dongleIsLoaded[2] = {false, false};
 input_device *serialDevices[2] = {NULL, NULL};
 
 int requestedDongle = -1;
 
+constexpr size_t DATA_OUT_LEN = 512;
+uint8_t dataOutBuffer[DATA_OUT_LEN] = {0};
+int dataOutLen = 0;
+
+void SendIOUpdate()
+{
+    Endpoint_SelectEndpoint(CDC_NOTIFICATION_EPADDR);
+    if (Endpoint_IsINReady()) {
+        uint8_t resp[12] = {0};
+        uint32_t *jammaIo = (uint32_t *)&resp[0];
+        uint16_t *analogIo = (uint16_t *)&resp[4];
+
+        jammaIoStatus ^= 2;  // Watchdog bit
+
+        *jammaIo = jammaIoStatus;
+        analogIo[0] = analogIoStatus[0];
+        analogIo[1] = analogIoStatus[1];
+        analogIo[2] = analogIoStatus[2];
+
+        Endpoint_Write_Stream_LE(resp, 12, NULL);
+        Endpoint_ClearIN();
+    }
+}
+
 void P2IO_Task() {
     if (USB_DeviceState != DEVICE_STATE_Configured)
         return;
 
-    constexpr size_t DATA_OUT_LEN = CDC_TXRX_EPSIZE;
     uint8_t dataIn[CDC_TXRX_EPSIZE] = {0};
-    uint8_t dataOut[DATA_OUT_LEN] = {0};
-    size_t responseLen = 0;
+    uint8_t *dataOut = &dataOutBuffer[dataOutLen];
+    size_t dataOutRemainingLen = DATA_OUT_LEN - dataOutLen;
+
+    SendIOUpdate();
 
     Endpoint_SelectEndpoint(CDC_RX_EPADDR);
     if (Endpoint_IsOUTReceived()) {
@@ -99,9 +124,10 @@ void P2IO_Task() {
 
                 else if (header->cmd == P2IO_CMD_READ_DIPSWITCH) {
                     uint8_t val = 0;
-                    for (size_t i = 0; i < 4; i++)
-                        val |= (1 << (3 - i)) * dipSwitch[i];
-
+                    val |= DIPSW1 << 3;
+                    val |= DIPSW2 << 2;
+                    val |= DIPSW3 << 1;
+                    val |= DIPSW4;
                     dataOut[1] += 1;
                     dataOut[4] = val & 0x7f;
                 }
@@ -212,8 +238,8 @@ void P2IO_Task() {
                     const auto device = serialDevices[port];
                     if (device != nullptr && requestedLen > 0) {
                         dataOut[4] = device->read(&dataOut[5], 0, requestedLen);
-                        responseLen = acio_escape_packet(&dataOut[5], dataOut[4], DATA_OUT_LEN - 5);
-                        responseLen += dataOut[1];
+                        dataOutLen = acio_escape_packet(&dataOut[5], dataOut[4], dataOutRemainingLen - 5);
+                        dataOutLen += dataOut[1];
                         dataOut[1] += dataOut[4];
                         device->reset_buffer();
                     }
@@ -223,43 +249,24 @@ void P2IO_Task() {
                 }
 
                 if (header->cmd != P2IO_CMD_SCI_READ)
-                    responseLen = dataOut[1];
+                    dataOutLen = dataOut[1];
 
-                responseLen += 2;
+                dataOutLen += 2;
             }
         }
 
         Endpoint_ClearOUT();
     }
 
-    Endpoint_SelectEndpoint(CDC_TX_EPADDR);
-    // Send all bytes in buffer
-    while (responseLen > 0) {
-        if (Endpoint_IsINReady()) {
-            const auto sendLen = responseLen > CDC_TXRX_EPSIZE ? CDC_TXRX_EPSIZE : responseLen;
-            Endpoint_Write_Stream_LE(dataOut, sendLen, NULL);
-            Endpoint_ClearIN();
-            responseLen -= sendLen;
-        }
+    SendIOUpdate();
 
-        if (responseLen > 0)
-            delay(1);
-    }
+    if (dataOutLen > 0) {
+        Endpoint_SelectEndpoint(CDC_TX_EPADDR);
 
-    Endpoint_SelectEndpoint(CDC_NOTIFICATION_EPADDR);
-    if (Endpoint_IsINReady()) {
-        uint8_t resp[12] = {0};
-        uint32_t *jammaIo = (uint32_t *)&resp[0];
-        uint16_t *analogIo = (uint16_t *)&resp[4];
+        uint16_t sendBytesProcessed = 0;
+        while (Endpoint_Write_Stream_LE(dataOutBuffer, dataOutLen, &sendBytesProcessed) == ENDPOINT_RWSTREAM_IncompleteTransfer);
 
-        jammaIoStatus ^= 2;  // Watchdog bit
-
-        *jammaIo = jammaIoStatus;
-        analogIo[0] = analogIoStatus[0];
-        analogIo[1] = analogIoStatus[1];
-        analogIo[2] = analogIoStatus[2];
-
-        Endpoint_Write_Stream_LE(resp, 12, NULL);
         Endpoint_ClearIN();
+        dataOutLen = 0;
     }
 }

@@ -54,14 +54,64 @@ bool acio_icca_device::device_write(uint8_t *packet, uint8_t *outputResponse, si
         }
 
         int curkey = 0;
-        bool is_insert_pressed = false;
+        bool isInsertPressed = false;
         if (header->addr == 1) {
-            // TODO: Card reader 1 controls go here
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P1_KEYPAD_1) == 0)
+                curkey |= 0b00001;
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P1_KEYPAD_4) == 0)
+                curkey |= 0b00010;
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P1_KEYPAD_7) == 0)
+                curkey |= 0b00011;
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P1_KEYPAD_00) == 0)
+                curkey |= 0b00100;
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P1_KEYPAD_0) == 0)
+                curkey |= 0b10000;
+
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P1_KEYPAD_2) == 0)
+                curkey |= 0b00101;
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P1_KEYPAD_5) == 0)
+                curkey |= 0b00110;
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P1_KEYPAD_8) == 0)
+                curkey |= 0b00111;
+
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P1_KEYPAD_3) == 0)
+                curkey |= 0b01001;
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P1_KEYPAD_6) == 0)
+                curkey |= 0b01010;
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P1_KEYPAD_9) == 0)
+                curkey |= 0b01011;
+
+            isInsertPressed = (cardIoStatus & P2IO_OTHER_CARDREADER_P1_TOGGLE_CARD) == 0;
         } else if (header->addr == 2) {
-            // TODO: Card reader 2 controls go here
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P2_KEYPAD_1) == 0)
+                curkey |= 0b00001;
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P2_KEYPAD_4) == 0)
+                curkey |= 0b00010;
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P2_KEYPAD_7) == 0)
+                curkey |= 0b00011;
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P2_KEYPAD_00) == 0)
+                curkey |= 0b00100;
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P2_KEYPAD_0) == 0)
+                curkey |= 0b10000;
+
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P2_KEYPAD_2) == 0)
+                curkey |= 0b00101;
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P2_KEYPAD_5) == 0)
+                curkey |= 0b00110;
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P2_KEYPAD_8) == 0)
+                curkey |= 0b00111;
+
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P2_KEYPAD_3) == 0)
+                curkey |= 0b01001;
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P2_KEYPAD_6) == 0)
+                curkey |= 0b01010;
+            if ((cardIoStatus & P2IO_OTHER_CARDREADER_P2_KEYPAD_9) == 0)
+                curkey |= 0b01011;
+
+            isInsertPressed = (cardIoStatus & P2IO_OTHER_CARDREADER_P2_TOGGLE_CARD) == 0;
         }
 
-        if (is_insert_pressed)
+        if (isInsertPressed)
         {
             if (!isCardInsertPressed)
             {

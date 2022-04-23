@@ -45,6 +45,7 @@ void Input_Task() {
             } else {
                 jammaIoStatus = 0xfffffffc | (jammaIoStatus & 2);
                 otherIoStatus = 0xffffffff;
+                cardIoStatus = 0xffffffff;
 
                 if (psx.buttonPressed(PSB_SELECT)) {
                     // Map some P2 controls and other inputs to holding select
@@ -367,6 +368,83 @@ void Input_Task() {
                     }
 #endif
                 }
+
+#if GAME_TYPE == GAMETYPE_DM || GAME_TYPE == GAMETYPE_GF || GAME_TYPE == GAMETYPE_DDR
+/*
+                // Card reader I/O updates
+                if (psx.buttonPressed(PSB_L2)) {
+                    cardIoStatus &= ~P2IO_OTHER_CARDREADER_P1_KEYPAD_1;
+                } else {
+                    cardIoStatus |= P2IO_OTHER_CARDREADER_P1_KEYPAD_1;
+                }
+
+                if (psx.buttonPressed(PSB_L1)) {
+                    cardIoStatus &= ~P2IO_OTHER_CARDREADER_P1_KEYPAD_2;
+                } else {
+                    cardIoStatus |= P2IO_OTHER_CARDREADER_P1_KEYPAD_2;
+                }
+
+                if (psx.buttonPressed(PSB_R2)) {
+                    cardIoStatus &= ~P2IO_OTHER_CARDREADER_P1_KEYPAD_3;
+                } else {
+                    cardIoStatus |= P2IO_OTHER_CARDREADER_P1_KEYPAD_3;
+                }
+
+                if (psx.buttonPressed(PSB_R1)) {
+                    cardIoStatus &= ~P2IO_OTHER_CARDREADER_P1_KEYPAD_4;
+                } else {
+                    cardIoStatus |= P2IO_OTHER_CARDREADER_P1_KEYPAD_4;
+                }
+
+                if (psx.buttonPressed(PSB_PAD_UP)) {
+                    cardIoStatus &= ~P2IO_OTHER_CARDREADER_P1_KEYPAD_5;
+                } else {
+                    cardIoStatus |= P2IO_OTHER_CARDREADER_P1_KEYPAD_5;
+                }
+
+                if (psx.buttonPressed(PSB_PAD_DOWN)) {
+                    cardIoStatus &= ~P2IO_OTHER_CARDREADER_P1_KEYPAD_6;
+                } else {
+                    cardIoStatus |= P2IO_OTHER_CARDREADER_P1_KEYPAD_6;
+                }
+
+                if (psx.buttonPressed(PSB_PAD_LEFT)) {
+                    cardIoStatus &= ~P2IO_OTHER_CARDREADER_P1_KEYPAD_7;
+                } else {
+                    cardIoStatus |= P2IO_OTHER_CARDREADER_P1_KEYPAD_7;
+                }
+
+                if (psx.buttonPressed(PSB_PAD_RIGHT)) {
+                    cardIoStatus &= ~P2IO_OTHER_CARDREADER_P1_KEYPAD_8;
+                } else {
+                    cardIoStatus |= P2IO_OTHER_CARDREADER_P1_KEYPAD_8;
+                }
+
+                if (psx.buttonPressed(PSB_TRIANGLE)) {
+                    cardIoStatus &= ~P2IO_OTHER_CARDREADER_P1_KEYPAD_9;
+                } else {
+                    cardIoStatus |= P2IO_OTHER_CARDREADER_P1_KEYPAD_9;
+                }
+
+                if (psx.buttonPressed(PSB_SQUARE)) {
+                    cardIoStatus &= ~P2IO_OTHER_CARDREADER_P1_KEYPAD_0;
+                } else {
+                    cardIoStatus |= P2IO_OTHER_CARDREADER_P1_KEYPAD_0;
+                }
+
+                if (psx.buttonPressed(PSB_CIRCLE)) {
+                    cardIoStatus &= ~P2IO_OTHER_CARDREADER_P1_KEYPAD_00;
+                } else {
+                    cardIoStatus |= P2IO_OTHER_CARDREADER_P1_KEYPAD_00;
+                }
+
+                if (psx.buttonPressed(PSB_CROSS)) {
+                    cardIoStatus &= ~P2IO_OTHER_CARDREADER_P1_TOGGLE_CARD;
+                } else {
+                    cardIoStatus |= P2IO_OTHER_CARDREADER_P1_TOGGLE_CARD;
+                }
+*/
+#endif
             }
         }
     }
