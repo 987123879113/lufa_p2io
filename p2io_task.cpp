@@ -55,6 +55,7 @@ uint32_t cardIoStatus = 0xffffffff;
 uint16_t analogIoStatus[3] = {0, 0, 0};
 bool dongleIsLoaded[2] = {false, false};
 input_device *serialDevices[2] = {NULL, NULL};
+uint8_t serialDeviceAvailability = 0;
 
 int requestedDongle = -1;
 
@@ -109,7 +110,8 @@ void P2IO_Task() {
             if (dataInLen > 0 && header->magic == P2IO_HEADER_MAGIC) {
                 // TODO: What happens if the packet ends on an 0xff?
                 auto newSize = acio_unescape_packet(&dataIn[dataInLen - processedBytes], processedBytes);
-                dataInLen -= (dataInLen - processedBytes) - newSize;
+                auto sizeDiff = processedBytes - newSize;
+                dataInLen -= sizeDiff;
             }
 
             if (dataInLen > 0 && header->magic == P2IO_HEADER_MAGIC && dataInLen >= header->len + 2) {
@@ -219,7 +221,7 @@ void P2IO_Task() {
                     dataOut[1] += 1;
                     dataOut[4] = 0;
 
-                    const auto device = serialDevices[port];
+                    const auto device = (serialDeviceAvailability & (1 << port)) ? serialDevices[port] : NULL;
                     if (device != nullptr) {
                         if (cmd == 0)
                             device->open();
@@ -230,15 +232,24 @@ void P2IO_Task() {
                     const auto port = dataIn[4];
                     const auto packetLen = dataIn[5];
 
-                    const auto device = serialDevices[port];
+                    const auto device = (serialDeviceAvailability & (1 << port)) ? serialDevices[port] : NULL;
                     if (device != nullptr) {
                         device->reset_buffer();
+
+                        auto packetLen = dataInLen - 6;
+                        auto newSize = acio_unescape_packet(&dataIn[6], dataInLen - 6);
+                        auto sizeDiff = packetLen - newSize;
+                        dataInLen -= sizeDiff;
+
+                        // TODO: Should probably return how many bytes from the message were
+                        // processed instead of just saying everything was processed
                         device->write(&dataIn[6], packetLen);
                     }
 
                     dataOut[1] += 1;
                     dataOut[4] = packetLen;
-                } else if (header->cmd == P2IO_CMD_SCI_READ) {
+                }
+                else if (header->cmd == P2IO_CMD_SCI_READ) {
                     const auto port = dataIn[4];
                     const auto requestedLen = dataIn[5];
 
@@ -253,7 +264,8 @@ void P2IO_Task() {
                         dataOut[1] += dataOut[4];
                         device->reset_buffer();
                     }
-                } else {
+                }
+                else {
                     dataOut[1] += 1;
                     dataOut[4] = 0;
                 }

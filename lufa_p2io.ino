@@ -33,11 +33,13 @@ void setup() {
     auto aciodev = new acio_device();
     aciodev->add_acio_device(0, new acio_icca_device(0));
     serialDevices[0] = aciodev;
+    serialDeviceAvailability = SERIAL_DEVICE_0;
 #elif GAME_TYPE == GAMETYPE_GF
     auto aciodev = new acio_device();
     aciodev->add_acio_device(0, new acio_icca_device(0));
     aciodev->add_acio_device(1, new acio_icca_device(1));
     serialDevices[0] = aciodev;
+    serialDeviceAvailability = SERIAL_DEVICE_0;
 #elif GAME_TYPE == GAMETYPE_DDR
     serialDevices[0] = new extio_device();
 
@@ -45,13 +47,17 @@ void setup() {
     aciodev->add_acio_device(0, new acio_icca_device(0));
     aciodev->add_acio_device(1, new acio_icca_device(1));
     serialDevices[1] = aciodev;
+
+    serialDeviceAvailability = SERIAL_DEVICE_1 | SERIAL_DEVICE_0;
 #elif GAME_TYPE == GAMETYPE_THRILLDRIVE
     auto aciodev = new acio_device();
     aciodev->add_acio_device(0, new thrilldrive_handle_device());
     aciodev->add_acio_device(1, new thrilldrive_belt_device());
     serialDevices[1] = aciodev;
+    serialDeviceAvailability = SERIAL_DEVICE_1;
 #elif GAME_TYPE == GAMETYPE_TOYSMARCH
     serialDevices[0] = new toysmarch_drumpad_device();
+    serialDeviceAvailability = SERIAL_DEVICE_0;
 #endif
 }
 

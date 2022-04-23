@@ -74,9 +74,8 @@ void acio_device::write(uint8_t *packet, size_t packetLen) {
     if (header->magic != ACIO_HEADER_MAGIC || packetLen < header->len + sizeof(ACIO_PACKET_HEADER) + 1)
         return;
 
-    const auto expectedChecksum = packet[header->len + sizeof(ACIO_PACKET_HEADER)];
-
     // Verify checksum
+    const auto expectedChecksum = packet[header->len + sizeof(ACIO_PACKET_HEADER)];
     const auto calculatedChecksum = accumulate(packet + 1, header->len + sizeof(ACIO_PACKET_HEADER) - 1);
 
     if (expectedChecksum != calculatedChecksum)
@@ -103,7 +102,6 @@ void acio_device::write(uint8_t *packet, size_t packetLen) {
         response[responseLen++] = accumulate(response, responseLen);
         responseLen = acio_escape_packet(response, responseLen, responseSize);
         add_packet_byte(0xaa);
+        add_packet(response, responseLen);
     }
-
-    add_packet(response, responseLen);
 }
