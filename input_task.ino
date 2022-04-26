@@ -24,6 +24,9 @@ PsxControllerBitBang<PIN_PS2_ATT, PIN_PS2_CMD, PIN_PS2_DAT, PIN_PS2_CLK> psx;
 boolean haveController = false;
 bool coinWasInserted[2] = {false, false};
 
+bool isGuitarController = false;
+bool isDrumController = false;
+
 void Input_Task() {
     static unsigned long last = 0;
     unsigned long cur_ms = millis();
@@ -36,6 +39,9 @@ void Input_Task() {
                     psx.enableAnalogSticks();
                     psx.exitConfigMode();
                 }
+
+                isDrumController = psx.buttonPressed(PSB_PAD_LEFT) && psx.buttonPressed(PSB_PAD_RIGHT) && psx.buttonPressed(PSB_PAD_UP);
+                isGuitarController = psx.buttonPressed(PSB_PAD_LEFT) && psx.buttonPressed(PSB_PAD_RIGHT) && !isDrumController;
 
                 haveController = true;
             }
@@ -84,12 +90,20 @@ void Input_Task() {
                         jammaIoStatus &= ~P2IO_JAMMA_GF_P2_START;
                     } else {
                         jammaIoStatus |= P2IO_JAMMA_GF_P2_START;
-                        jammaIoStatus &= ~P2IO_JAMMA_IO_COIN1;
+                    }
 
-                        if (!coinWasInserted[0])
-                            coinsInserted[0]++;
+                    if (isGuitarController) {
+                        if (psx.buttonPressed(PSB_START)) {
+                            jammaIoStatus |= P2IO_JAMMA_IO_COIN1;
+                            coinWasInserted[0] = false;
+                        } else {
+                            jammaIoStatus &= ~P2IO_JAMMA_IO_COIN1;
 
-                        coinWasInserted[0] = true;
+                            if (!coinWasInserted[0])
+                                coinsInserted[0]++;
+
+                            coinWasInserted[0] = true;
+                        }
                     }
 #elif GAME_TYPE == GAMETYPE_DM
                     if (psx.buttonPressed(PSB_L1)) {
@@ -102,6 +116,20 @@ void Input_Task() {
                         jammaIoStatus &= ~P2IO_JAMMA_DM_SELECT_R;
                     } else {
                         jammaIoStatus |= P2IO_JAMMA_DM_SELECT_R;
+                    }
+
+                    if (isDrumController) {
+                        if (psx.buttonPressed(PSB_L1) || psx.buttonPressed(PSB_R1)) {
+                            jammaIoStatus |= P2IO_JAMMA_IO_COIN1;
+                            coinWasInserted[0] = false;
+                        } else {
+                            jammaIoStatus &= ~P2IO_JAMMA_IO_COIN1;
+
+                            if (!coinWasInserted[0])
+                                coinsInserted[0]++;
+
+                            coinWasInserted[0] = true;
+                        }
                     }
 #elif GAME_TYPE == GAMETYPE_TOYSMARCH
                     if (psx.buttonPressed(PSB_L1)) {
@@ -194,118 +222,168 @@ void Input_Task() {
                         jammaIoStatus |= P2IO_JAMMA_DDR_P1_START;
                     }
 #elif GAME_TYPE == GAMETYPE_GF
-/*
                     // PS1 guitar mapping
-                    jammaIoStatus |= P2IO_JAMMA_IO_COIN1;
-                    coinWasInserted[0] = false;
+                    if (isGuitarController) {
+                        jammaIoStatus |= P2IO_JAMMA_IO_COIN1;
+                        coinWasInserted[0] = false;
 
-                    if (psx.buttonPressed(PSB_R2)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_GF_P1_R;
-                    } else {
-                        jammaIoStatus |= P2IO_JAMMA_GF_P1_R;
-                    }
+                        if (psx.buttonPressed(PSB_R2)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_GF_P1_R;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_GF_P1_R;
+                        }
 
-                    if (psx.buttonPressed(PSB_CIRCLE)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_GF_P1_G;
-                    } else {
-                        jammaIoStatus |= P2IO_JAMMA_GF_P1_G;
-                    }
+                        if (psx.buttonPressed(PSB_CIRCLE)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_GF_P1_G;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_GF_P1_G;
+                        }
 
-                    if (psx.buttonPressed(PSB_TRIANGLE)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_GF_P1_B;
-                    } else {
-                        jammaIoStatus |= P2IO_JAMMA_GF_P1_B;
-                    }
+                        if (psx.buttonPressed(PSB_TRIANGLE)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_GF_P1_B;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_GF_P1_B;
+                        }
 
-                    if (psx.buttonPressed(PSB_PAD_UP)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_GF_P1_PICK;
-                    } else {
-                        jammaIoStatus |= P2IO_JAMMA_GF_P1_PICK;
-                    }
+                        if (psx.buttonPressed(PSB_PAD_UP)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_GF_P1_PICK;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_GF_P1_PICK;
+                        }
 
-                    if (psx.buttonPressed(PSB_START)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_GF_P1_START;
-                    } else {
-                        jammaIoStatus |= P2IO_JAMMA_GF_P1_START;
-                    }
-*/
+                        if (psx.buttonPressed(PSB_L2)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_GF_P1_WAILING;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_GF_P1_WAILING;
+                        }
 
-                    if (psx.buttonPressed(PSB_L2)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_GF_P1_R;
+                        if (psx.buttonPressed(PSB_START)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_GF_P1_START;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_GF_P1_START;
+                        }
                     } else {
-                        jammaIoStatus |= P2IO_JAMMA_GF_P1_R;
-                    }
+                        if (psx.buttonPressed(PSB_L2)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_GF_P1_R;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_GF_P1_R;
+                        }
 
-                    if (psx.buttonPressed(PSB_L1)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_GF_P1_G;
-                    } else {
-                        jammaIoStatus |= P2IO_JAMMA_GF_P1_G;
-                    }
+                        if (psx.buttonPressed(PSB_L1)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_GF_P1_G;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_GF_P1_G;
+                        }
 
-                    if (psx.buttonPressed(PSB_PAD_DOWN)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_GF_P1_B;
-                    } else {
-                        jammaIoStatus |= P2IO_JAMMA_GF_P1_B;
-                    }
+                        if (psx.buttonPressed(PSB_PAD_DOWN)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_GF_P1_B;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_GF_P1_B;
+                        }
 
-                    if (psx.buttonPressed(PSB_R1) || psx.buttonPressed(PSB_R2)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_GF_P1_WAILING;
-                    } else {
-                        jammaIoStatus |= P2IO_JAMMA_GF_P1_WAILING;
-                    }
+                        if (psx.buttonPressed(PSB_R1) || psx.buttonPressed(PSB_R2)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_GF_P1_WAILING;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_GF_P1_WAILING;
+                        }
 
-                    if (psx.buttonPressed(PSB_CIRCLE) || psx.buttonPressed(PSB_CROSS)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_GF_P1_PICK;
-                    } else {
-                        jammaIoStatus |= P2IO_JAMMA_GF_P1_PICK;
-                    }
+                        if (psx.buttonPressed(PSB_CIRCLE) || psx.buttonPressed(PSB_CROSS)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_GF_P1_PICK;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_GF_P1_PICK;
+                        }
 
-                    if (psx.buttonPressed(PSB_START)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_GF_P1_START;
-                    } else {
-                        jammaIoStatus |= P2IO_JAMMA_GF_P1_START;
+                        if (psx.buttonPressed(PSB_START)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_GF_P1_START;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_GF_P1_START;
+                        }
                     }
 #elif GAME_TYPE == GAMETYPE_DM
-                    if (psx.buttonPressed(PSB_START)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_DM_START;
-                    } else {
-                        jammaIoStatus |= P2IO_JAMMA_DM_START;
-                    }
+                    if (isDrumController) {
+                        if (psx.buttonPressed(PSB_START)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_DM_START;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_DM_START;
+                        }
 
-                    if (psx.buttonJustPressed(PSB_L1) || psx.buttonJustPressed(PSB_L2)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_DM_HIHAT;
-                    } else {
-                        jammaIoStatus |= P2IO_JAMMA_DM_HIHAT;
-                    }
+                        if (psx.buttonJustPressed(PSB_TRIANGLE)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_DM_HIHAT;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_DM_HIHAT;
+                        }
 
-                    if (psx.buttonJustPressed(PSB_R1) || psx.buttonJustPressed(PSB_R2)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_DM_CYMBAL;
-                    } else {
-                        jammaIoStatus |= P2IO_JAMMA_DM_CYMBAL;
-                    }
+                        if (psx.buttonJustPressed(PSB_CIRCLE)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_DM_SNARE;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_DM_SNARE;
+                        }
 
-                    if (psx.buttonJustPressed(PSB_PAD_UP) || psx.buttonJustPressed(PSB_TRIANGLE)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_DM_HIGH_TOM;
-                    } else {
-                        jammaIoStatus |= P2IO_JAMMA_DM_HIGH_TOM;
-                    }
+                        if (psx.buttonJustPressed(PSB_R2)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_DM_HIGH_TOM;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_DM_HIGH_TOM;
+                        }
 
-                    if (psx.buttonJustPressed(PSB_PAD_LEFT) || psx.buttonJustPressed(PSB_SQUARE)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_DM_SNARE;
-                    } else {
-                        jammaIoStatus |= P2IO_JAMMA_DM_SNARE;
-                    }
+                        if (psx.buttonJustPressed(PSB_R1)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_DM_LOW_TOM;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_DM_LOW_TOM;
+                        }
 
-                    if (psx.buttonPressed(PSB_PAD_DOWN) || psx.buttonJustPressed(PSB_CROSS)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_DM_BASS_DRUM;
-                    } else {
-                        jammaIoStatus |= P2IO_JAMMA_DM_BASS_DRUM;
-                    }
+                        if (psx.buttonJustPressed(PSB_CROSS)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_DM_CYMBAL;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_DM_CYMBAL;
+                        }
 
-                    if (psx.buttonJustPressed(PSB_PAD_RIGHT) || psx.buttonJustPressed(PSB_CIRCLE)) {
-                        jammaIoStatus &= ~P2IO_JAMMA_DM_LOW_TOM;
+                        if (psx.buttonPressed(PSB_L2)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_DM_BASS_DRUM;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_DM_BASS_DRUM;
+                        }
                     } else {
-                        jammaIoStatus |= P2IO_JAMMA_DM_LOW_TOM;
+                        if (psx.buttonPressed(PSB_START)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_DM_START;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_DM_START;
+                        }
+
+                        if (psx.buttonJustPressed(PSB_L1) || psx.buttonJustPressed(PSB_L2)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_DM_HIHAT;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_DM_HIHAT;
+                        }
+
+                        if (psx.buttonJustPressed(PSB_R1) || psx.buttonJustPressed(PSB_R2)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_DM_CYMBAL;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_DM_CYMBAL;
+                        }
+
+                        if (psx.buttonJustPressed(PSB_PAD_UP) || psx.buttonJustPressed(PSB_TRIANGLE)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_DM_HIGH_TOM;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_DM_HIGH_TOM;
+                        }
+
+                        if (psx.buttonJustPressed(PSB_PAD_LEFT) || psx.buttonJustPressed(PSB_SQUARE)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_DM_SNARE;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_DM_SNARE;
+                        }
+
+                        if (psx.buttonPressed(PSB_PAD_DOWN) || psx.buttonJustPressed(PSB_CROSS)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_DM_BASS_DRUM;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_DM_BASS_DRUM;
+                        }
+
+                        if (psx.buttonJustPressed(PSB_PAD_RIGHT) || psx.buttonJustPressed(PSB_CIRCLE)) {
+                            jammaIoStatus &= ~P2IO_JAMMA_DM_LOW_TOM;
+                        } else {
+                            jammaIoStatus |= P2IO_JAMMA_DM_LOW_TOM;
+                        }
                     }
 #elif GAME_TYPE == GAMETYPE_THRILLDRIVE
                     if (psx.buttonPressed(PSB_START)) {
