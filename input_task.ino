@@ -84,6 +84,12 @@ void Input_Task() {
                         jammaIoStatus &= ~P2IO_JAMMA_GF_P2_START;
                     } else {
                         jammaIoStatus |= P2IO_JAMMA_GF_P2_START;
+                        jammaIoStatus &= ~P2IO_JAMMA_IO_COIN1;
+
+                        if (!coinWasInserted[0])
+                            coinsInserted[0]++;
+
+                        coinWasInserted[0] = true;
                     }
 #elif GAME_TYPE == GAMETYPE_DM
                     if (psx.buttonPressed(PSB_L1)) {
@@ -188,6 +194,42 @@ void Input_Task() {
                         jammaIoStatus |= P2IO_JAMMA_DDR_P1_START;
                     }
 #elif GAME_TYPE == GAMETYPE_GF
+/*
+                    // PS1 guitar mapping
+                    jammaIoStatus |= P2IO_JAMMA_IO_COIN1;
+                    coinWasInserted[0] = false;
+
+                    if (psx.buttonPressed(PSB_R2)) {
+                        jammaIoStatus &= ~P2IO_JAMMA_GF_P1_R;
+                    } else {
+                        jammaIoStatus |= P2IO_JAMMA_GF_P1_R;
+                    }
+
+                    if (psx.buttonPressed(PSB_CIRCLE)) {
+                        jammaIoStatus &= ~P2IO_JAMMA_GF_P1_G;
+                    } else {
+                        jammaIoStatus |= P2IO_JAMMA_GF_P1_G;
+                    }
+
+                    if (psx.buttonPressed(PSB_TRIANGLE)) {
+                        jammaIoStatus &= ~P2IO_JAMMA_GF_P1_B;
+                    } else {
+                        jammaIoStatus |= P2IO_JAMMA_GF_P1_B;
+                    }
+
+                    if (psx.buttonPressed(PSB_PAD_UP)) {
+                        jammaIoStatus &= ~P2IO_JAMMA_GF_P1_PICK;
+                    } else {
+                        jammaIoStatus |= P2IO_JAMMA_GF_P1_PICK;
+                    }
+
+                    if (psx.buttonPressed(PSB_START)) {
+                        jammaIoStatus &= ~P2IO_JAMMA_GF_P1_START;
+                    } else {
+                        jammaIoStatus |= P2IO_JAMMA_GF_P1_START;
+                    }
+*/
+
                     if (psx.buttonPressed(PSB_L2)) {
                         jammaIoStatus &= ~P2IO_JAMMA_GF_P1_R;
                     } else {
