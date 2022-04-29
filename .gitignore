@@ -1,3 +1,5 @@
+config_private.h
+config_private_example.h
 app/bin/
 app/pde.jar
 build/macosx/work/

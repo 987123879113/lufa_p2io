@@ -1,24 +1,23 @@
 #include "toysmarch_drumpad.h"
 
 #include "common.h"
-#include "p2io_task.h"
 #include "io_bits.h"
+#include "p2io_task.h"
 
 int toysmarch_drumpad_device::read(uint8_t *buf, size_t bufLen, const size_t requestedLen) {
     // The game always expects to be able to read the state from the device, regardless of what was written
     // If this packet can't be read then the game will throw a drum I/O error
     uint8_t state[9] = {
-        stateIdx,
-        (otherIoStatus & P2IO_OTHER_TOYSMARCH_P1_CYMBAL) ? 0 : 128,
-        (otherIoStatus & P2IO_OTHER_TOYSMARCH_P1_DRUML) ? 0 : 128,
-        (otherIoStatus & P2IO_OTHER_TOYSMARCH_P1_DRUMR) ? 0 : 128,
+        (stateIdx++) & 7,
+        128 * ((otherIoStatus & P2IO_OTHER_TOYSMARCH_P1_CYMBAL) != 0),
+        128 * ((otherIoStatus & P2IO_OTHER_TOYSMARCH_P1_DRUML) != 0),
+        128 * ((otherIoStatus & P2IO_OTHER_TOYSMARCH_P1_DRUMR) != 0),
         0,
-        (otherIoStatus & P2IO_OTHER_TOYSMARCH_P2_CYMBAL) ? 0 : 128,
-        (otherIoStatus & P2IO_OTHER_TOYSMARCH_P2_DRUML) ? 0 : 128,
-        (otherIoStatus & P2IO_OTHER_TOYSMARCH_P2_DRUMR) ? 0 : 128,
+        128 * ((otherIoStatus & P2IO_OTHER_TOYSMARCH_P2_CYMBAL) != 0),
+        128 * ((otherIoStatus & P2IO_OTHER_TOYSMARCH_P2_DRUML) != 0),
+        128 * ((otherIoStatus & P2IO_OTHER_TOYSMARCH_P2_DRUMR) != 0),
         0
     };
-    stateIdx = (stateIdx + 1) % 8;
 
     buf[bufLen++] = 0xaa;
     memcpy(buf + bufLen, state, 9);

@@ -1,11 +1,15 @@
 // Reference: https://github.com/987123879113/pcsx2/blob/p2io/pcsx2/USB/usb-python2/usb-python2.cpp
 // Reference: https://github.com/987123879113/pcsx2/blob/p2io/pcsx2/USB/usb-python2/usb-python2.h
 
+#include <EEPROM.h>
+
 #include "p2io_task.h"
+#include "lcd_task.h"
 
 #include "acio.h"
 #include "common.h"
 #include "config.h"
+#include "io_bits.h"
 #include "p2io.h"
 
 struct P2IO_PACKET_HEADER {
@@ -17,7 +21,7 @@ struct P2IO_PACKET_HEADER {
 
 const uint8_t P2IO_HEADER_MAGIC = 0xaa;
 
-enum {
+enum : uint8_t {
     // cmd_... names are from internal namings from symbols
     P2IO_CMD_GET_VERSION = 0x01,       // cmd_getver
     P2IO_CMD_RESEND = 0x02,            // resend_cmd
@@ -48,39 +52,81 @@ enum {
 };
 
 bool FORCE_31KHZ = false;
-uint16_t coinsInserted[2] = {0, 0};
-uint32_t jammaIoStatus = 0xfffffffe;
-uint32_t otherIoStatus = 0xffffffff;
-uint32_t cardIoStatus = 0xffffffff;
-uint16_t analogIoStatus[3] = {0, 0, 0};
-bool dongleIsLoaded[2] = {false, false};
+uint16_t coinsInserted[2] = {};
+uint32_t jammaIoStatus = 0;
+uint32_t otherIoStatus = 0;
+uint32_t cardIoStatus = 0;
+uint16_t analogIoStatus[3] = {};
 input_device *serialDevices[2] = {NULL, NULL};
 uint8_t serialDeviceAvailability = 0;
 
 int requestedDongle = -1;
 
-constexpr size_t DATA_IN_LEN = 512;
-uint8_t dataIn[DATA_IN_LEN] = {0};
+constexpr size_t DATA_IN_LEN = 192;
+uint8_t dataIn[DATA_IN_LEN] = {};
 int dataInLen = 0;
 
-constexpr size_t DATA_OUT_LEN = 512;
-uint8_t dataOut[DATA_OUT_LEN] = {0};
+constexpr size_t DATA_OUT_LEN = 192;
+uint8_t dataOut[DATA_OUT_LEN] = {};
 int dataOutLen = 0;
 
-void SendIOUpdate()
-{
+const uint8_t *donglePayload[2] = {NULL, NULL};
+
+int curLoadedProfileId = 0;
+CardState cardStatus[2] = {CARD_EJECTED, CARD_EJECTED};
+GameType gameType;
+
+int8_t guitarKnobValue[2] = {};
+
+uint8_t dipsw = 0;
+
+void P2IO_Reset() {
+    // coinsInserted[0] = coinsInserted[1] = 0;
+    jammaIoStatus = otherIoStatus = cardIoStatus = 0;
+    analogIoStatus[0] = analogIoStatus[1] = analogIoStatus[2] = 0;
+    cardStatus[0] = cardStatus[1] = CARD_EJECTED;
+    guitarKnobValue[0] = guitarKnobValue[1] = 0;
+
+    requestedDongle = -1;
+    donglePayload[0] = gameProfiles[curLoadedProfileId].dongleBlack;
+    donglePayload[1] = dongleWhite;
+
+    dataInLen = 0;
+    dataOutLen = 0;
+
+    dipsw = EEPROM.read(EEPROM_IDX_DIPSW);
+}
+
+void SendIOUpdate() {
     Endpoint_SelectEndpoint(CDC_NOTIFICATION_EPADDR);
     if (Endpoint_IsINReady()) {
-        uint8_t resp[12] = {0};
+        uint8_t resp[12] = {};
         uint32_t *jammaIo = (uint32_t *)&resp[0];
         uint16_t *analogIo = (uint16_t *)&resp[4];
 
         jammaIoStatus ^= 2;  // Watchdog bit
 
-        *jammaIo = jammaIoStatus;
-        analogIo[0] = analogIoStatus[0];
-        analogIo[1] = analogIoStatus[1];
-        analogIo[2] = analogIoStatus[2];
+        if (gameType == GAMETYPE_GF) {
+            // Knobs
+            jammaIoStatus &= ~P2IO_JAMMA_GF_P1_EFFECT3;
+            if (guitarKnobValue[0] == 1)
+                jammaIoStatus |= P2IO_JAMMA_GF_P1_EFFECT1;
+            else if (guitarKnobValue[0] == 2)
+                jammaIoStatus |= P2IO_JAMMA_GF_P1_EFFECT2;
+            else if (guitarKnobValue[0] == 3)
+                jammaIoStatus |= P2IO_JAMMA_GF_P1_EFFECT3;
+
+            jammaIoStatus &= ~P2IO_JAMMA_GF_P2_EFFECT3;
+            if (guitarKnobValue[1] == 1)
+                jammaIoStatus |= P2IO_JAMMA_GF_P2_EFFECT1;
+            else if (guitarKnobValue[1] == 2)
+                jammaIoStatus |= P2IO_JAMMA_GF_P2_EFFECT2;
+            else if (guitarKnobValue[1] == 3)
+                jammaIoStatus |= P2IO_JAMMA_GF_P2_EFFECT3;
+        }
+
+        *jammaIo = ~(jammaIoStatus | 1);
+        memcpy(analogIo, analogIoStatus, sizeof(uint16_t) * 3);
 
         Endpoint_Write_Stream_LE(resp, 12, NULL);
         Endpoint_ClearIN();
@@ -127,25 +173,13 @@ void P2IO_Task() {
                     dataOut[8] = 1;
                     dataOut[9] = 6;
                     dataOut[10] = 4;
-                } else if (header->cmd == P2IO_CMD_SET_AV_MASK) {
-                    dataOut[1] += 1;
-                    dataOut[4] = 0;
                 } else if (header->cmd == P2IO_CMD_GET_AV_REPORT) {
                     dataOut[1] += 1;
                     dataOut[4] = FORCE_31KHZ ? P2IO_AVREPORT_MODE_31KHZ : P2IO_AVREPORT_MODE_15KHZ;
-                }
-
-                else if (header->cmd == P2IO_CMD_READ_DIPSWITCH) {
-                    uint8_t val = 0;
-                    val |= DIPSW1 << 3;
-                    val |= DIPSW2 << 2;
-                    val |= DIPSW3 << 1;
-                    val |= DIPSW4;
+                } else if (header->cmd == P2IO_CMD_READ_DIPSWITCH) {
                     dataOut[1] += 1;
-                    dataOut[4] = val & 0x7f;
-                }
-
-                else if (header->cmd == P2IO_CMD_COIN_STOCK) {
+                    dataOut[4] = dipsw & 0x7f;
+                } else if (header->cmd == P2IO_CMD_COIN_STOCK) {
                     const uint8_t resp[] = {
                         0,
                         (uint8_t)(coinsInserted[0] >> 8),
@@ -155,41 +189,9 @@ void P2IO_Task() {
                     };
                     dataOut[1] += sizeof(resp);
                     memcpy(&dataOut[4], resp, sizeof(resp));
-                } else if (header->cmd == P2IO_CMD_COIN_COUNTER) {
-                    dataOut[1] += 1;
-                    dataOut[4] = 0;
-                } else if (header->cmd == P2IO_CMD_COIN_BLOCKER) {
-                    dataOut[1] += 1;
-                    dataOut[4] = 0;
-                } else if (header->cmd == P2IO_CMD_COIN_COUNTER_OUT) {
-                    dataOut[1] += 1;
-                    dataOut[4] = 0;
-                }
-
-                else if (header->cmd == P2IO_CMD_LAMP_OUT) {
-                    dataOut[1] += 1;
-                    dataOut[4] = 0;
-                } else if (header->cmd == P2IO_CMD_PORT_READ) {
-                    dataOut[1] += 1;
-                    dataOut[4] = 0;
-                } else if (header->cmd == P2IO_CMD_PORT_READ_POR) {
-                    dataOut[1] += 1;
-                    dataOut[4] = 0;
-                } else if (header->cmd == P2IO_CMD_SEND_IR) {
-                    dataOut[1] += 1;
-                    dataOut[4] = 0;
-                } else if (header->cmd == P2IO_CMD_SET_WATCHDOG) {
-                    dataOut[1] += 1;
-                    dataOut[4] = 0;
-                } else if (header->cmd == P2IO_CMD_JAMMA_START) {
-                    dataOut[1] += 1;
-                    dataOut[4] = 0;
                 } else if (header->cmd == P2IO_CMD_GET_JAMMA_POR) {
                     dataOut[1] += 4;
                     memset(&dataOut[4], 0, 4);
-                } else if (header->cmd == P2IO_CMD_FWRITEMODE) {
-                    dataOut[1] += 1;
-                    dataOut[4] = 0;
                 } else if (header->cmd == P2IO_CMD_DALLAS) {
                     uint8_t subCmd = dataIn[4];
 
@@ -201,17 +203,11 @@ void P2IO_Task() {
                         if (subCmd != 2)
                             requestedDongle = subCmd;
 
-                        if (requestedDongle >= 0 && dongleIsLoaded[requestedDongle]) {
+                        if (requestedDongle >= 0 && donglePayload[requestedDongle] != NULL) {
                             dataOut[1] += 8 + 32;
                             dataOut[4] = 1;
                             memcpy_P(&dataOut[5], donglePayload[requestedDongle], 40);
                         }
-                    } else if (subCmd == 3) {
-                        // TODO: is this ever used?
-                        // Dallas Write Mem
-                        dataOut[1] += 8 + 32;
-                        dataOut[4] = 1;
-                        memset(&dataOut[5], 0, 40);
                     }
                 } else if (header->cmd == P2IO_CMD_SCI_SETUP) {
                     const auto port = dataIn[4];
@@ -248,8 +244,7 @@ void P2IO_Task() {
 
                     dataOut[1] += 1;
                     dataOut[4] = packetLen;
-                }
-                else if (header->cmd == P2IO_CMD_SCI_READ) {
+                } else if (header->cmd == P2IO_CMD_SCI_READ) {
                     const auto port = dataIn[4];
                     const auto requestedLen = dataIn[5];
 
@@ -259,21 +254,53 @@ void P2IO_Task() {
                     const auto device = serialDevices[port];
                     if (device != nullptr && requestedLen > 0) {
                         dataOut[4] = device->read(&dataOut[5], 0, requestedLen);
-                        dataOutLen = acio_escape_packet(&dataOut[5], dataOut[4], DATA_OUT_LEN - 5);
-                        dataOutLen += dataOut[1];
                         dataOut[1] += dataOut[4];
                         device->reset_buffer();
                     }
                 }
+#if 0
+                else if (header->cmd == P2IO_CMD_LAMP_OUT) {
+                    dataOut[1] += 1;
+                    dataOut[4] = 0;
+                }
+                else if (header->cmd == P2IO_CMD_SET_AV_MASK) {
+                    dataOut[1] += 1;
+                    dataOut[4] = 0;
+                } else if (header->cmd == P2IO_CMD_COIN_COUNTER) {
+                    dataOut[1] += 1;
+                    dataOut[4] = 0;
+                } else if (header->cmd == P2IO_CMD_COIN_BLOCKER) {
+                    dataOut[1] += 1;
+                    dataOut[4] = 0;
+                } else if (header->cmd == P2IO_CMD_COIN_COUNTER_OUT) {
+                    dataOut[1] += 1;
+                    dataOut[4] = 0;
+                } else if (header->cmd == P2IO_CMD_PORT_READ) {
+                    dataOut[1] += 1;
+                    dataOut[4] = 0;
+                } else if (header->cmd == P2IO_CMD_PORT_READ_POR) {
+                    dataOut[1] += 1;
+                    dataOut[4] = 0;
+                } else if (header->cmd == P2IO_CMD_SEND_IR) {
+                    dataOut[1] += 1;
+                    dataOut[4] = 0;
+                } else if (header->cmd == P2IO_CMD_SET_WATCHDOG) {
+                    dataOut[1] += 1;
+                    dataOut[4] = 0;
+                } else if (header->cmd == P2IO_CMD_JAMMA_START) {
+                    dataOut[1] += 1;
+                    dataOut[4] = 0;
+                } else if (header->cmd == P2IO_CMD_FWRITEMODE) {
+                    dataOut[1] += 1;
+                    dataOut[4] = 0;
+                }
+#endif
                 else {
                     dataOut[1] += 1;
                     dataOut[4] = 0;
                 }
 
-                if (header->cmd != P2IO_CMD_SCI_READ)
-                    dataOutLen = dataOut[1];
-
-                dataOutLen += 2;
+                dataOutLen = dataOut[1] + 2;
 
                 dataInLen -= header->len + 2;
                 if (dataInLen > 0)
@@ -306,8 +333,11 @@ void P2IO_Task() {
     if (dataOutLen > 0) {
         Endpoint_SelectEndpoint(CDC_TX_EPADDR);
 
+        // All data must be escaped one more time before sending
+        auto escapedLen = acio_escape_packet(&dataOut[1], dataOutLen - 1, DATA_OUT_LEN - 1) + 1;
+
         uint16_t dataOutProcessed = 0;
-        while (Endpoint_Write_Stream_LE(dataOut, dataOutLen, &dataOutProcessed) == ENDPOINT_RWSTREAM_IncompleteTransfer);
+        while (Endpoint_Write_Stream_LE(dataOut, escapedLen, &dataOutProcessed) == ENDPOINT_RWSTREAM_IncompleteTransfer);
 
         Endpoint_ClearIN();
         dataOutLen = 0;

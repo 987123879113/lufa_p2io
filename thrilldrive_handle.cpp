@@ -2,7 +2,7 @@
 
 #include <avr/pgmspace.h>
 
-const uint8_t TD_HANDLE_VERSION_INFO[44] PROGMEM = {
+const uint8_t TD_HANDLE_VERSION_INFO[44] = {
     0x03, 0x00, 0x00, 0x00,                                                               // Device ID
     0x00,                                                                                 // Flag
     0x01,                                                                                 // Major version
@@ -14,13 +14,13 @@ const uint8_t TD_HANDLE_VERSION_INFO[44] PROGMEM = {
 };
 
 bool thrilldrive_handle_device::device_write(uint8_t *packet, uint8_t *outputResponse, size_t *outputResponseLen) {
-    const auto header = (ACIO_PACKET_HEADER*)packet;
+    const auto header = (ACIO_PACKET_HEADER *)packet;
     const auto code = BigEndian16(header->code);
     size_t outputResponseAddLen = 0;
 
     if (code == 0x0002) {
         // Not the real information for this device
-        memcpy_P(outputResponse + outputResponseAddLen + *outputResponseLen, TD_HANDLE_VERSION_INFO, 44);
+        memcpy(outputResponse + outputResponseAddLen + *outputResponseLen, TD_HANDLE_VERSION_INFO, 44);
         outputResponseAddLen += 44;
     } else {
         memset(outputResponse + outputResponseAddLen + *outputResponseLen, 0, 4);
@@ -37,7 +37,7 @@ bool thrilldrive_handle_device::device_write(uint8_t *packet, uint8_t *outputRes
             const int8_t ffb3 = packet[8];
             const int8_t ffb4 = packet[9];
 
-            int16_t* val = (int16_t*)(outputResponse + *outputResponseLen)[outputResponseAddLen + 1];
+            int16_t *val = (int16_t *)(outputResponse + *outputResponseLen)[outputResponseAddLen + 1];
             *val = BigEndian16(0);  // What is this value?
             outputResponseAddLen += 3;
 

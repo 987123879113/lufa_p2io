@@ -5,7 +5,7 @@
 #include "io_bits.h"
 #include "p2io_task.h"
 
-const uint8_t TD_BELT_VERSION_INFO[44] PROGMEM = {
+const uint8_t TD_BELT_VERSION_INFO[44] = {
     0x03, 0x00, 0x00, 0x00,                                                               // Device ID
     0x00,                                                                                 // Flag
     0x01,                                                                                 // Major version
@@ -21,7 +21,7 @@ bool thrilldrive_belt_device::device_write(uint8_t *packet, uint8_t *outputRespo
     const auto code = BigEndian16(header->code);
     size_t outputResponseAddLen = 0;
 
-    if ((otherIoStatus & P2IO_OTHER_THRILLDRIVE_BELT) == 0) {
+    if (otherIoStatus & P2IO_OTHER_THRILLDRIVE_BELT) {
         if (!seatBeltButtonPressed)
             seatBeltStatus = !seatBeltStatus;
 
@@ -32,7 +32,7 @@ bool thrilldrive_belt_device::device_write(uint8_t *packet, uint8_t *outputRespo
 
     if (code == 0x0002) {
         // Not the real information for this device
-        memcpy_P(outputResponse + outputResponseAddLen + *outputResponseLen, TD_BELT_VERSION_INFO, 44);
+        memcpy(outputResponse + outputResponseAddLen + *outputResponseLen, TD_BELT_VERSION_INFO, 44);
         outputResponseAddLen += 44;
     } else {
         memset(outputResponse + outputResponseAddLen + *outputResponseLen, 0, 4);
@@ -47,7 +47,7 @@ bool thrilldrive_belt_device::device_write(uint8_t *packet, uint8_t *outputRespo
             outputResponseAddLen += 3;
         } else if (code == 0x0113) {
             (outputResponse + *outputResponseLen)[outputResponseAddLen++] = 0;
-            (outputResponse + *outputResponseLen)[outputResponseAddLen++] = seatBeltStatus ? 0 : 0xff;  // 0 = fastened
+            (outputResponse + *outputResponseLen)[outputResponseAddLen++] = 0xff ^ (0xff * seatBeltStatus);  // 0 = fastened
         }
     }
 

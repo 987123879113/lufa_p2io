@@ -28,6 +28,21 @@ class acio_device : public acio_device_base {
     void write(uint8_t *packet, size_t packetLen);
 
    public:
+    acio_device() {
+        for (int i = 0; i < 2; i++) {
+            devices[i] = nullptr;
+        }
+    }
+
+    ~acio_device() {
+        for (int i = 0; i < 2; i++) {
+            if (devices[i] != nullptr) {
+                delete devices[i];
+                devices[i] = nullptr;
+            }
+        }
+    }
+
     void add_acio_device(int index, acio_device_base *device) noexcept;
 
     uint8_t deviceCount = 0;

@@ -1,19 +1,15 @@
 #include "acio.h"
 
 size_t acio_unescape_packet(uint8_t *buffer, size_t bufferLen) {
-    bool invert = false;
+    uint8_t invert = 0;
     size_t outputIdx = 0;
 
     for (size_t i = 0; i < bufferLen; i++) {
         if (buffer[i] == 0xff) {
-            invert = true;
+            invert = 0xff;
         } else {
-            if (invert)
-                buffer[outputIdx++] = ~buffer[i];
-            else
-                buffer[outputIdx++] = buffer[i];
-
-            invert = false;
+            buffer[outputIdx++] = buffer[i] ^ invert;
+            invert = 0;
         }
     }
 
@@ -22,6 +18,7 @@ size_t acio_unescape_packet(uint8_t *buffer, size_t bufferLen) {
 
 size_t acio_escape_packet(uint8_t *buffer, size_t bufferLen, size_t maxBufferLen) {
     size_t inputIdx = 0, outputIdx = 0;
+    uint8_t invert = 0;
 
     // To make simplifying code simpler for Arduino, the assumption is that the max buffer
     // length will always be twice the buffer length for a worst case scenario.
@@ -35,10 +32,10 @@ size_t acio_escape_packet(uint8_t *buffer, size_t bufferLen, size_t maxBufferLen
             memmove(buffer + inputIdx + 1, buffer + inputIdx, bufferLen - i);
             inputIdx++;
             buffer[outputIdx++] = 0xff;
-            buffer[outputIdx++] = ~buffer[inputIdx++];
-        } else {
-            buffer[outputIdx++] = buffer[inputIdx++];
+            invert = 0xff;
         }
+        buffer[outputIdx++] = buffer[inputIdx++] ^ invert;
+        invert = 0;
     }
 
     return outputIdx;
@@ -50,8 +47,8 @@ void acio_device::add_acio_device(int index, acio_device_base *device) noexcept 
 }
 
 void acio_device::write(uint8_t *packet, size_t packetLen) {
-    uint8_t response[128];
     const size_t responseSize = 128;
+    uint8_t response[responseSize] = {};
     size_t responseLen = 0;
 
     if (!isOpen || packetLen < sizeof(ACIO_PACKET_HEADER))
@@ -80,8 +77,6 @@ void acio_device::write(uint8_t *packet, size_t packetLen) {
 
     if (expectedChecksum != calculatedChecksum)
         return;
-
-    memset(&response[0], 0, responseSize);
 
     // Copy header from packet to response
     memcpy(&response[0], &packet[1], 4);

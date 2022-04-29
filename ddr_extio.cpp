@@ -21,12 +21,14 @@ void extio_device::write(uint8_t *packet, size_t bufferLen) {
      * 80 20 00 20 2P FOOT DOWN
      */
 
+/*
     const auto expectedChecksum = packet[3];
     const uint8_t calculatedChecksum = (packet[0] + packet[1] + packet[2]) & 0x7f;
 
     if (calculatedChecksum != expectedChecksum) {
         return;
     }
+*/
 
     add_packet_byte(0x11);
 }

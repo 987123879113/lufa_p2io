@@ -1,69 +1,52 @@
 #include "LUFAConfig.h"
 
+#include <EEPROM.h>
 #include <LUFA.h>
+
+#include "config.h"
 
 #include "p2io.h"
 
+#include "profile.h"
+
+#include "lcd_task.h"
 #include "p2io_task.h"
 
-#include "acio.h"
-#include "common.h"
-#include "config.h"
-#include "ddr_extio.h"
-#include "icca.h"
-#include "thrilldrive_belt.h"
-#include "thrilldrive_handle.h"
-#include "toysmarch_drumpad.h"
-
 void setup() {
-    SetupHardware();          // ask LUFA to setup the hardware
-    GlobalInterruptEnable();  // enable global interrupts
-
-    for (int j = 0; j < 2; j++) {
-        dongleIsLoaded[j] = false;
-        for (int i = 0; i < 40; i++) {
-            if (donglePayload[j][i] != 0) {
-                dongleIsLoaded[j] = true;
-                break;
-            }
-        }
+    // Initialize the EEPROM if needed.
+    // Checking if various values in EEPROM are 5, 7, 3 should be enough to know that the EEPROM has been initialized for this program.
+    if (EEPROM.read(EEPROM_IDX_CHECK1) != 5 || EEPROM.read(EEPROM_IDX_CHECK2) != 7 || EEPROM.read(EEPROM_IDX_CHECK3) != 3) {
+        EEPROM.update(EEPROM_IDX_PROFILE, 0); // Current profile ID
+        EEPROM.update(EEPROM_IDX_DIPSW, 0); // Current DIPSW value
+        EEPROM.update(EEPROM_IDX_CHECK1, 5);
+        EEPROM.update(EEPROM_IDX_CHECK2, 7);
+        EEPROM.update(EEPROM_IDX_CHECK3, 3);
     }
 
-#if GAME_TYPE == GAMETYPE_DM
-    auto aciodev = new acio_device();
-    aciodev->add_acio_device(0, new acio_icca_device(0));
-    serialDevices[0] = aciodev;
-    serialDeviceAvailability = SERIAL_DEVICE_0;
-#elif GAME_TYPE == GAMETYPE_GF
-    auto aciodev = new acio_device();
-    aciodev->add_acio_device(0, new acio_icca_device(0));
-    aciodev->add_acio_device(1, new acio_icca_device(1));
-    serialDevices[0] = aciodev;
-    serialDeviceAvailability = SERIAL_DEVICE_0;
-#elif GAME_TYPE == GAMETYPE_DDR
-    serialDevices[0] = new extio_device();
+    loadGameProfile(EEPROM.read(0));
 
-    auto aciodev = new acio_device();
-    aciodev->add_acio_device(0, new acio_icca_device(0));
-    aciodev->add_acio_device(1, new acio_icca_device(1));
-    serialDevices[1] = aciodev;
+    LCD_Init();
 
-    serialDeviceAvailability = SERIAL_DEVICE_1 | SERIAL_DEVICE_0;
-#elif GAME_TYPE == GAMETYPE_THRILLDRIVE
-    auto aciodev = new acio_device();
-    aciodev->add_acio_device(0, new thrilldrive_handle_device());
-    aciodev->add_acio_device(1, new thrilldrive_belt_device());
-    serialDevices[1] = aciodev;
-    serialDeviceAvailability = SERIAL_DEVICE_1;
-#elif GAME_TYPE == GAMETYPE_TOYSMARCH
-    serialDevices[0] = new toysmarch_drumpad_device();
-    serialDeviceAvailability = SERIAL_DEVICE_0;
+#if INPUT_METHOD == INPUT_METHOD_PS4USB
+    Input_Init_PS4USB();
+#elif INPUT_METHOD == INPUT_METHOD_PSX
+    Input_Init_PSX();
 #endif
+
+    SetupHardware();          // ask LUFA to setup the hardware
+    GlobalInterruptEnable();  // enable global interrupts
 }
 
 void loop() {
+    LCD_Task();
+
+#if INPUT_METHOD == INPUT_METHOD_PS4USB
+    Input_Task_PS4USB();
+#elif INPUT_METHOD == INPUT_METHOD_PSX
+    Input_Task_PSX();
+#endif
+
     CDC_Device_USBTask(&VirtualSerial_CDC_Interface);
-    Input_Task();
     P2IO_Task();
     USB_USBTask();
 }
